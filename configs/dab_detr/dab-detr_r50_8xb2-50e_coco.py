@@ -13,10 +13,12 @@ model = dict(
         bgr_to_rgb=True,
         pad_size_divisor=1),
     backbone=dict(
-        type='ResNet',
+        type='ResNetWithClip',
         depth=50,
         num_stages=4,
         out_indices=(3, ),
+        deep_stem=True,
+        avg_down=True,
         frozen_stages=1,
         norm_cfg=dict(type='BN', requires_grad=False),
         norm_eval=True,
@@ -126,7 +128,11 @@ train_pipeline = [
                     ]]),
     dict(type='PackDetInputs')
 ]
-train_dataloader = dict(dataset=dict(pipeline=train_pipeline))
+# train_dataloader = dict(dataset=dict(pipeline=train_pipeline))
+train_dataloader = dict(
+    batch_size=2,
+    num_workers=8,
+    dataset=dict(pipeline=train_pipeline))
 
 # optimizer
 optim_wrapper = dict(
