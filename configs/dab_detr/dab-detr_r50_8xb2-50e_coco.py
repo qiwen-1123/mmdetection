@@ -6,6 +6,7 @@ model = dict(
     num_queries=300,
     with_random_refpoints=False,
     num_patterns=0,
+    clip_dim=80, # num of cls for clip
     data_preprocessor=dict(
         type='DetDataPreprocessor',
         mean=[123.675, 116.28, 103.53],
@@ -130,8 +131,8 @@ train_pipeline = [
 ]
 # train_dataloader = dict(dataset=dict(pipeline=train_pipeline))
 train_dataloader = dict(
-    batch_size=2,
-    num_workers=8,
+    batch_size=4,
+    num_workers=4,
     dataset=dict(pipeline=train_pipeline))
 
 # optimizer

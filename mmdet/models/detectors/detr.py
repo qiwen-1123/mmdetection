@@ -78,7 +78,9 @@ class DETR(DetectionTransformer):
               and 'memory_pos'.
         """
 
-        feat = img_feats[-1]  # NOTE img_feats contains only one feature.
+        # feat = img_feats[-1]  # NOTE img_feats contains only one feature.
+        feat = img_feats[0]  # NOTE img_feats contains img feature and clip confidance.
+        clip_conf = img_feats[1] 
         batch_size, feat_dim, _, _ = feat.shape
         # construct binary masks which for the transformer.
         assert batch_data_samples is not None
@@ -117,7 +119,7 @@ class DETR(DetectionTransformer):
         # prepare transformer_inputs_dict
         encoder_inputs_dict = dict(
             feat=feat, feat_mask=masks, feat_pos=pos_embed)
-        decoder_inputs_dict = dict(memory_mask=masks, memory_pos=pos_embed)
+        decoder_inputs_dict = dict(memory_mask=masks, memory_pos=pos_embed, clip_conf=clip_conf) # add clip_conf
         return encoder_inputs_dict, decoder_inputs_dict
 
     def forward_encoder(self, feat: Tensor, feat_mask: Tensor,

@@ -234,10 +234,15 @@ class DetectionTransformer(BaseDetector, metaclass=ABCMeta):
             tuple[Tensor]: Tuple of feature maps from neck. Each feature map
             has shape (bs, dim, H, W).
         """
-        x = self.backbone(batch_inputs)
+        
+        # x = self.backbone(batch_inputs)
+        # if self.with_neck:
+        #     x = self.neck(x)
+        # return x
+        (x,clip_conf) = self.backbone(batch_inputs)# contains [img_feat, clip_conf]
         if self.with_neck:
             x = self.neck(x)
-        return x
+        return x+ (clip_conf,)
 
     @abstractmethod
     def pre_transformer(

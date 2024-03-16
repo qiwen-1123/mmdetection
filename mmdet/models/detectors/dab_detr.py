@@ -9,7 +9,8 @@ from ..layers import SinePositionalEncoding
 from ..layers.transformer import (DABDetrTransformerDecoder,
                                   DABDetrTransformerEncoder, inverse_sigmoid)
 from .detr import DETR
-
+from ..layers import MLP
+import torch
 
 @MODELS.register_module()
 class DABDETR(DETR):
@@ -32,11 +33,13 @@ class DABDETR(DETR):
                  *args,
                  with_random_refpoints: bool = False,
                  num_patterns: int = 0,
+                 clip_dim=80,
                  **kwargs) -> None:
         self.with_random_refpoints = with_random_refpoints
         assert isinstance(num_patterns, int), \
             f'num_patterns should be int but {num_patterns}.'
         self.num_patterns = num_patterns
+        self.clip_dim=clip_dim
 
         super().__init__(*args, **kwargs)
 
@@ -56,6 +59,7 @@ class DABDETR(DETR):
         assert num_feats * 2 == self.embed_dims, \
             f'embed_dims should be exactly 2 times of num_feats. ' \
             f'Found {self.embed_dims} and {num_feats}.'
+        self.merg_clip = MLP(self.embed_dims+self.clip_dim, self.embed_dims, self.embed_dims, 1)
 
     def init_weights(self) -> None:
         """Initialize weights for Transformer and other components."""
@@ -105,7 +109,7 @@ class DABDETR(DETR):
         return decoder_inputs_dict, head_inputs_dict
 
     def forward_decoder(self, query: Tensor, query_pos: Tensor, memory: Tensor,
-                        memory_mask: Tensor, memory_pos: Tensor) -> Dict:
+                        memory_mask: Tensor, memory_pos: Tensor, clip_conf: Tensor) -> Dict:
         """Forward with Transformer decoder.
 
         Args:
@@ -124,6 +128,11 @@ class DABDETR(DETR):
             dict: The dictionary of decoder outputs, which includes the
             `hidden_states` and `references` of the decoder output.
         """
+                 
+        """ merge clip_conf with memory(output of encoder) """
+        clip_conf = clip_conf.reshape(clip_conf.size(0), clip_conf.size(1),-1).permute(0,2,1)
+        cat_mem_clip = torch.cat((memory, clip_conf), dim=2)
+        memory = self.merg_clip(cat_mem_clip)
 
         hidden_states, references = self.decoder(
             query=query,
