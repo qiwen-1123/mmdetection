@@ -16,6 +16,7 @@ import numpy as np
 import open_clip
 import torch
 import torch.nn.functional as F
+from collections import OrderedDict
 
 model_name = "RN50" # convnext_large_d_320, ViT-H-14-378-quickgelu, ViT-H-14
 pre_trained = "openai"  # laion2b_s29b_b131k_ft_soup, dfn5b
@@ -164,7 +165,8 @@ class Bottleneck(BaseModule):
 
         if self.style == 'pytorch':
             self.conv1_stride = 1
-            self.conv2_stride = stride
+            # self.conv2_stride = stride
+            self.conv2_stride = 1 # modified for consistent with Clip
         else:
             self.conv1_stride = stride
             self.conv2_stride = 1
@@ -208,6 +210,7 @@ class Bottleneck(BaseModule):
                 bias=False)
 
         self.add_module(self.norm2_name, norm2)
+        self.avgpool = nn.AvgPool2d(stride) if stride > 1 else nn.Identity() # add for consistent with clip
         self.conv3 = build_conv_layer(
             conv_cfg,
             planes,
@@ -218,6 +221,15 @@ class Bottleneck(BaseModule):
 
         self.relu = nn.ReLU(inplace=True)
         self.downsample = downsample
+        ### add for consistent with Clip
+        if stride > 1 or inplanes != planes * Bottleneck.expansion:
+            # downsampling layer is prepended with an avgpool, and the subsequent convolution has stride 1
+            self.downsample = nn.Sequential(OrderedDict([
+                ("-1", nn.AvgPool2d(stride)),
+                ("0", nn.Conv2d(inplanes, planes * self.expansion, 1, stride=1, bias=False)),
+                ("1", nn.BatchNorm2d(planes * self.expansion))
+            ]))
+        ### end
 
         if self.with_plugins:
             self.after_conv1_plugin_names = self.make_block_plugins(
@@ -286,6 +298,8 @@ class Bottleneck(BaseModule):
             out = self.conv2(out)
             out = self.norm2(out)
             out = self.relu(out)
+
+            out = self.avgpool(out) # add for consistent with clip
 
             if self.with_plugins:
                 out = self.forward_plugin(out, self.after_conv2_plugin_names)
@@ -875,6 +889,7 @@ class ResNetWithClip(ResNet):
                                                       self.data_class,
                                                       detection_templates,
                                                       device="cuda",)
+        ### end
 
     def make_stage_plugins(self, plugins, stage_idx):
         """Make plugins for ResNet ``stage_idx`` th stage.
