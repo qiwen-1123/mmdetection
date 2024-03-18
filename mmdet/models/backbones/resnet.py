@@ -17,6 +17,7 @@ import open_clip
 import torch
 import torch.nn.functional as F
 from collections import OrderedDict
+from torchvision import transforms
 
 model_name = "RN50" # convnext_large_d_320, ViT-H-14-378-quickgelu, ViT-H-14
 pre_trained = "openai"  # laion2b_s29b_b131k_ft_soup, dfn5b
@@ -865,7 +866,7 @@ class ResNetWithClip(ResNet):
         self.clip, _, self.preprocess = open_clip.create_model_and_transforms(
             model_name, pretrained=pre_trained
         )
-
+        self.clip_resize=transforms.Resize([896,896]) # resize for clip input
         self.clip = self.clip.to("cuda")
 
         # self.text_f = zeroshot_classifier(
@@ -1018,7 +1019,8 @@ class ResNetWithClip(ResNet):
     def forward(self, x):
         """ Clip Part """
         with torch.no_grad():
-            img_f = self.clip.encode_image(x)  # B, C, H, W
+            img = self.clip_resize(x) # resize img for clip
+            img_f = self.clip.encode_image(img)  # B, C, H, W
             h = img_f.shape[-2]
             w = img_f.shape[-1]
             img_f=img_f.reshape(-1,img_f.shape[-3],img_f.shape[-2]*img_f.shape[-1]).permute(0,2,1)
@@ -1055,6 +1057,7 @@ class ResNetWithClip(ResNet):
             if i in self.out_indices:
                 outs.append(x)
         # return tuple(outs)
+        class_conf = nn.functional.interpolate(class_conf, size=outs[0].shape[2:], mode="bilinear", align_corners=True)
         return tuple([outs, class_conf])
 
     def train(self, mode=True):
