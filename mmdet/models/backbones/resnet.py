@@ -867,7 +867,7 @@ class ResNetWithClip(ResNet):
             model_name, pretrained=pre_trained
         )
         self.clip_resize=transforms.Resize([896,896]) # resize for clip input
-        self.clip = self.clip.to("cuda")
+        self.clip = self.clip.to("cuda").eval()
 
         # self.text_f = zeroshot_classifier(
         #     self.data_class, detection_templates, self.clip
