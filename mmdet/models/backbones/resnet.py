@@ -165,8 +165,7 @@ class Bottleneck(BaseModule):
 
         if self.style == 'pytorch':
             self.conv1_stride = 1
-            # self.conv2_stride = stride
-            self.conv2_stride = 1 # modified for consistent with Clip
+            self.conv2_stride = stride
         else:
             self.conv1_stride = stride
             self.conv2_stride = 1
@@ -210,7 +209,6 @@ class Bottleneck(BaseModule):
                 bias=False)
 
         self.add_module(self.norm2_name, norm2)
-        self.avgpool = nn.AvgPool2d(stride) if stride > 1 else nn.Identity() # add for consistent with clip
         self.conv3 = build_conv_layer(
             conv_cfg,
             planes,
@@ -221,15 +219,6 @@ class Bottleneck(BaseModule):
 
         self.relu = nn.ReLU(inplace=True)
         self.downsample = downsample
-        ### add for consistent with Clip
-        if stride > 1 or inplanes != planes * Bottleneck.expansion:
-            # downsampling layer is prepended with an avgpool, and the subsequent convolution has stride 1
-            self.downsample = nn.Sequential(OrderedDict([
-                ("-1", nn.AvgPool2d(stride)),
-                ("0", nn.Conv2d(inplanes, planes * self.expansion, 1, stride=1, bias=False)),
-                ("1", nn.BatchNorm2d(planes * self.expansion))
-            ]))
-        ### end
 
         if self.with_plugins:
             self.after_conv1_plugin_names = self.make_block_plugins(
@@ -298,8 +287,6 @@ class Bottleneck(BaseModule):
             out = self.conv2(out)
             out = self.norm2(out)
             out = self.relu(out)
-
-            out = self.avgpool(out) # add for consistent with clip
 
             if self.with_plugins:
                 out = self.forward_plugin(out, self.after_conv2_plugin_names)
@@ -1008,8 +995,7 @@ class ResNetWithClip(ResNet):
                 self.norm_cfg, stem_channels, postfix=1)
             self.add_module(self.norm1_name, norm1)
             self.relu = nn.ReLU(inplace=True)
-        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=0)
-        self.avgpool = nn.AvgPool2d(kernel_size=2, stride=2, padding=0)
+        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
 
     def _freeze_stages(self):
         if self.frozen_stages >= 0:
@@ -1031,27 +1017,28 @@ class ResNetWithClip(ResNet):
 
     def forward(self, x):
         """ Clip Part """
-        img_f = self.clip.encode_image(x)  # B, C, H, W
-        h = img_f.shape[-2]
-        w = img_f.shape[-1]
-        img_f=img_f.reshape(-1,img_f.shape[-3],img_f.shape[-2]*img_f.shape[-1]).permute(0,2,1)
-        img_f = img_f / img_f.norm(dim=-1, keepdim=True)  # normalize img_f
+        with torch.no_grad():
+            img_f = self.clip.encode_image(x)  # B, C, H, W
+            h = img_f.shape[-2]
+            w = img_f.shape[-1]
+            img_f=img_f.reshape(-1,img_f.shape[-3],img_f.shape[-2]*img_f.shape[-1]).permute(0,2,1)
+            img_f = img_f / img_f.norm(dim=-1, keepdim=True)  # normalize img_f
 
-        # last = torch.load("img_f.pth")
-        # res = (last - img_f).norm()
-        # torch.save(img_f.detach(), "img_f.pth")
+            # last = torch.load("img_f.pth")
+            # res = (last - img_f).norm()
+            # torch.save(img_f.detach(), "img_f.pth")
 
-        # @: dot product of two vectors
-        img_f = torch.nn.functional.interpolate(
-            img_f, scale_factor=0.5
-        )  # to match size
+            # @: dot product of two vectors
+            img_f = torch.nn.functional.interpolate(
+                img_f, scale_factor=0.5
+            )  # to match size
 
-        # dataset class conf
-        class_conf = 100 * img_f @ self.text_f
-        class_conf = class_conf.permute(0, 2, 1).reshape(
-            -1, self.class_num, h, w
-        )  # B, K, H, W
-        class_conf = F.softmax(class_conf, dim=1)
+            # dataset class conf
+            class_conf = 100 * img_f @ self.text_f
+            class_conf = class_conf.permute(0, 2, 1).reshape(
+                -1, self.class_num, h, w
+            )  # B, K, H, W
+            class_conf = F.softmax(class_conf, dim=1)
         
         """Forward function."""
         if self.deep_stem:
@@ -1060,7 +1047,7 @@ class ResNetWithClip(ResNet):
             x = self.conv1(x)
             x = self.norm1(x)
             x = self.relu(x)
-        x = self.avgpool(x)
+        x = self.maxpool(x)
         outs = []
         for i, layer_name in enumerate(self.res_layers):
             res_layer = getattr(self, layer_name)

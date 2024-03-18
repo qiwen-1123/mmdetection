@@ -18,8 +18,6 @@ model = dict(
         depth=50,
         num_stages=4,
         out_indices=(3, ),
-        deep_stem=True,
-        avg_down=True,
         frozen_stages=1,
         norm_cfg=dict(type='BN', requires_grad=False),
         norm_eval=True,
@@ -131,7 +129,7 @@ train_pipeline = [
 ]
 # train_dataloader = dict(dataset=dict(pipeline=train_pipeline))
 train_dataloader = dict(
-    batch_size=4,
+    batch_size=2,
     num_workers=4,
     dataset=dict(pipeline=train_pipeline))
 
