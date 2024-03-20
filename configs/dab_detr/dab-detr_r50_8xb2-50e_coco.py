@@ -162,3 +162,15 @@ param_scheduler = [
 # USER SHOULD NOT CHANGE ITS VALUES.
 # base_batch_size = (8 GPUs) x (2 samples per GPU)
 auto_scale_lr = dict(base_batch_size=16, enable=False)
+randomness = dict(seed=42)
+vis_backends = [dict(type='WandbVisBackend',
+                     init_kwargs={
+                    'project': 'dab-detr',
+                    'name': 'detrWithClip',
+                    'dir': 'wandb_result'
+                    })]
+visualizer = dict(
+    type='mmdet.DetLocalVisualizer',
+    vis_backends=vis_backends,
+    name='visualizer',
+    save_dir='wandb_result') 
