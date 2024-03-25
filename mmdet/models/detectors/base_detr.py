@@ -98,6 +98,7 @@ class DetectionTransformer(BaseDetector, metaclass=ABCMeta):
         img_feats = self.extract_feat(batch_inputs)
         head_inputs_dict = self.forward_transformer(img_feats,
                                                     batch_data_samples)
+        head_inputs_dict["img_feat"]=img_feats # add img_feat (raw feat and clip_confidence)
         losses = self.bbox_head.loss(
             **head_inputs_dict, batch_data_samples=batch_data_samples)
 

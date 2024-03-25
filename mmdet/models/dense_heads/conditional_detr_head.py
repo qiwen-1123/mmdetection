@@ -67,6 +67,7 @@ class ConditionalDETRHead(DETRHead):
         return layers_cls_scores, layers_bbox_preds
 
     def loss(self, hidden_states: Tensor, references: Tensor,
+             img_feat: Tuple,
              batch_data_samples: SampleList) -> dict:
         """Perform forward propagation and loss calculation of the detection
         head on the features of the upstream network.
@@ -79,6 +80,7 @@ class ConditionalDETRHead(DETRHead):
             batch_data_samples (List[:obj:`DetDataSample`]): The Data
                 Samples. It usually includes information such as
                 `gt_instance`, `gt_panoptic_seg` and `gt_sem_seg`.
+            img_feat (Tuple): Features from the encoder, which contains RN50 feature and clip confidence
 
         Returns:
             dict: A dictionary of loss components.
@@ -90,7 +92,7 @@ class ConditionalDETRHead(DETRHead):
             batch_gt_instances.append(data_sample.gt_instances)
 
         outs = self(hidden_states, references)
-        loss_inputs = outs + (batch_gt_instances, batch_img_metas)
+        loss_inputs = outs + (batch_gt_instances, batch_img_metas , img_feat)
         losses = self.loss_by_feat(*loss_inputs)
         return losses
 

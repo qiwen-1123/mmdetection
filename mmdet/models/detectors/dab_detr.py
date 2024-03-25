@@ -109,7 +109,7 @@ class DABDETR(DETR):
         return decoder_inputs_dict, head_inputs_dict
 
     def forward_decoder(self, query: Tensor, query_pos: Tensor, memory: Tensor,
-                        memory_mask: Tensor, memory_pos: Tensor, clip_conf: Tensor) -> Dict:
+                        memory_mask: Tensor, memory_pos: Tensor) -> Dict:
         """Forward with Transformer decoder.
 
         Args:
@@ -130,9 +130,6 @@ class DABDETR(DETR):
         """
                  
         """ merge clip_conf with memory(output of encoder) """
-        clip_conf = clip_conf.reshape(clip_conf.size(0), clip_conf.size(1),-1).permute(0,2,1)
-        cat_mem_clip = torch.cat((memory, clip_conf), dim=2)
-        memory = self.merg_clip(cat_mem_clip)
 
         hidden_states, references = self.decoder(
             query=query,

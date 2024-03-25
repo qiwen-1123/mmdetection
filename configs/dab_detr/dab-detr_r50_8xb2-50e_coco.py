@@ -79,7 +79,8 @@ model = dict(
             alpha=0.25,
             loss_weight=1.0),
         loss_bbox=dict(type='L1Loss', loss_weight=5.0),
-        loss_iou=dict(type='GIoULoss', loss_weight=2.0)),
+        loss_iou=dict(type='GIoULoss', loss_weight=2.0),
+        loss_contras=dict(type='Proto_contrast_loss', human_index=0)),
     # training and testing settings
     train_cfg=dict(
         assigner=dict(
@@ -125,12 +126,16 @@ train_pipeline = [
                                     (768, 1333), (800, 1333)],
                             keep_ratio=True)
                     ]]),
-    dict(type='PackDetInputs')
+    dict(type='GaussianMapTransform'),
+    dict(type='PackDetInputs',
+        meta_keys=('img_id', 'img_path', 'ori_shape', 'img_shape',
+                            'scale_factor', 'flip', 'flip_direction', 'gauss')),
+
 ]
 # train_dataloader = dict(dataset=dict(pipeline=train_pipeline))
 train_dataloader = dict(
-    batch_size=4,
-    num_workers=4,
+    batch_size=2,
+    num_workers=2,
     dataset=dict(pipeline=train_pipeline))
 
 # optimizer

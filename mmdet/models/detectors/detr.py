@@ -119,7 +119,7 @@ class DETR(DetectionTransformer):
         # prepare transformer_inputs_dict
         encoder_inputs_dict = dict(
             feat=feat, feat_mask=masks, feat_pos=pos_embed)
-        decoder_inputs_dict = dict(memory_mask=masks, memory_pos=pos_embed, clip_conf=clip_conf) # add clip_conf
+        decoder_inputs_dict = dict(memory_mask=masks, memory_pos=pos_embed)
         return encoder_inputs_dict, decoder_inputs_dict
 
     def forward_encoder(self, feat: Tensor, feat_mask: Tensor,
