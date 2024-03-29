@@ -877,6 +877,9 @@ class ResNetWithClip(ResNet):
                                                       self.data_class,
                                                       detection_templates,
                                                       device="cuda",)
+        self.gamma = nn.Parameter(torch.ones(self.text_f.shape[0]).unsqueeze(1) * 1e-4).to("cuda")
+        self.contexts = nn.Parameter(torch.randn(self.text_f.shape)).to("cuda")
+        self.text_f += self.gamma*self.contexts
         ### end
 
     def make_stage_plugins(self, plugins, stage_idx):
@@ -1035,12 +1038,12 @@ class ResNetWithClip(ResNet):
                 img_f, scale_factor=0.5
             )  # to match size
 
-            # dataset class conf
-            class_conf = 100 * img_f @ self.text_f
-            class_conf = class_conf.permute(0, 2, 1).reshape(
-                -1, self.class_num, h, w
-            )  # B, K, H, W
-            class_conf = F.softmax(class_conf, dim=1)
+        # dataset class conf
+        class_conf = 100 * img_f @ self.text_f
+        class_conf = class_conf.permute(0, 2, 1).reshape(
+            -1, self.class_num, h, w
+        )  # B, K, H, W
+        class_conf = F.softmax(class_conf, dim=1)
         
         """Forward function."""
         if self.deep_stem:

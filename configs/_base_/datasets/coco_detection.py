@@ -43,7 +43,8 @@ train_dataloader = dict(
     dataset=dict(
         type=dataset_type,
         data_root=data_root,
-        ann_file='annotations/instances_train2017.json',
+        # ann_file='annotations/instances_train2017.json',
+        ann_file='semi_anns/instances_train2017.1@10.json',
         data_prefix=dict(img='train2017/'),
         filter_cfg=dict(filter_empty_gt=True, min_size=32),
         pipeline=train_pipeline,
