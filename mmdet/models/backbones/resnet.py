@@ -1009,7 +1009,7 @@ class ResNetWithClip(ResNet):
         """ Clip Part """
         with torch.no_grad():
             img = self.clip_resize(x) # resize img for clip
-            class_conf=self.clip(x)
+            class_conf=self.clip(img)
             
         """Forward function."""
         if self.deep_stem:
