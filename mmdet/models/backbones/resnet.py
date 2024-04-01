@@ -11,7 +11,7 @@ from mmdet.registry import MODELS
 from ..layers import ResLayer
 
 from mmdet.registry import DATASETS
-from open_clip import build_zero_shot_classifier
+from open_clip import build_zero_shot_classifier, MonoCLIP
 import numpy as np
 import open_clip
 import torch
@@ -19,7 +19,7 @@ import torch.nn.functional as F
 from collections import OrderedDict
 from torchvision import transforms
 
-model_name = "RN50" # convnext_large_d_320, ViT-H-14-378-quickgelu, ViT-H-14
+model_name = "ViT-B-16" # convnext_large_d_320, ViT-H-14-378-quickgelu, ViT-H-14, ViT-B-16, RN50
 pre_trained = "openai"  # laion2b_s29b_b131k_ft_soup, dfn5b
 tokenizer = open_clip.get_tokenizer(model_name)
 detection_templates = ["A photo of a {}"]
@@ -863,23 +863,9 @@ class ResNetWithClip(ResNet):
         self.class_num = len(data_class)
         self.data_class = data_class
 
-        self.clip, _, self.preprocess = open_clip.create_model_and_transforms(
-            model_name, pretrained=pre_trained
-        )
+        self.clip= MonoCLIP(data_class=self.data_class)
         self.clip_resize=transforms.Resize([896,896]) # resize for clip input
         self.clip = self.clip.to("cuda").eval()
-
-        # self.text_f = zeroshot_classifier(
-        #     self.data_class, detection_templates, self.clip
-        # )  # init text feature
-        
-        self.text_f = build_zero_shot_classifier(self.clip, tokenizer,
-                                                      self.data_class,
-                                                      detection_templates,
-                                                      device="cuda",)
-        self.gamma = nn.Parameter(torch.ones(self.text_f.shape[0]).unsqueeze(1) * 1e-4).to("cuda")
-        self.contexts = nn.Parameter(torch.randn(self.text_f.shape)).to("cuda")
-        self.text_f += self.gamma*self.contexts
         ### end
 
     def make_stage_plugins(self, plugins, stage_idx):
@@ -1023,28 +1009,8 @@ class ResNetWithClip(ResNet):
         """ Clip Part """
         with torch.no_grad():
             img = self.clip_resize(x) # resize img for clip
-            img_f = self.clip.encode_image(img)  # B, C, H, W
-            h = img_f.shape[-2]
-            w = img_f.shape[-1]
-            img_f=img_f.reshape(-1,img_f.shape[-3],img_f.shape[-2]*img_f.shape[-1]).permute(0,2,1)
-            img_f = img_f / img_f.norm(dim=-1, keepdim=True)  # normalize img_f
-
-            # last = torch.load("img_f.pth")
-            # res = (last - img_f).norm()
-            # torch.save(img_f.detach(), "img_f.pth")
-
-            # @: dot product of two vectors
-            img_f = torch.nn.functional.interpolate(
-                img_f, scale_factor=0.5
-            )  # to match size
-
-        # dataset class conf
-        class_conf = 100 * img_f @ self.text_f
-        class_conf = class_conf.permute(0, 2, 1).reshape(
-            -1, self.class_num, h, w
-        )  # B, K, H, W
-        class_conf = F.softmax(class_conf, dim=1)
-        
+            class_conf=self.clip(x)
+            
         """Forward function."""
         if self.deep_stem:
             x = self.stem(x)
@@ -1088,3 +1054,17 @@ class ResNetV1d(ResNet):
     def __init__(self, **kwargs):
         super(ResNetV1d, self).__init__(
             deep_stem=True, avg_down=True, **kwargs)
+
+### visual func
+def vis_clip_conf(class_conf):
+    import matplotlib.pyplot as plt
+    class_conf_np = class_conf.squeeze().cpu().detach().numpy()
+    mask = np.argmax(class_conf_np, axis=0)
+    plt.imshow(mask, cmap="jet", alpha=0.5)
+    plt.show()
+    
+def show_img(img):
+    import matplotlib.pyplot as plt
+    img_np = img.squeeze().permute(1, 2, 0).cpu().numpy()
+    plt.imshow(img_np)
+    plt.show()
