@@ -865,7 +865,7 @@ class ResNetWithClip(ResNet):
 
         self.clip= MonoCLIP(data_class=self.data_class)
         self.clip_resize=transforms.Resize([896,896]) # resize for clip input
-        self.clip = self.clip.to("cuda").eval()
+        self.clip = self.clip.to("cuda")
         ### end
 
     def make_stage_plugins(self, plugins, stage_idx):
@@ -1007,10 +1007,9 @@ class ResNetWithClip(ResNet):
 
     def forward(self, x):
         """ Clip Part """
-        with torch.no_grad():
-            img = self.clip_resize(x) # resize img for clip
-            class_conf=self.clip(img)
-            
+        img = self.clip_resize(x) # resize img for clip
+        class_conf=self.clip(img)
+        
         """Forward function."""
         if self.deep_stem:
             x = self.stem(x)
