@@ -1007,8 +1007,9 @@ class ResNetWithClip(ResNet):
 
     def forward(self, x):
         """ Clip Part """
-        img = self.clip_resize(x) # resize img for clip
-        class_conf=self.clip(img)
+        if self.training:
+            img = self.clip_resize(x) # resize img for clip
+            class_conf=self.clip(img)
         
         """Forward function."""
         if self.deep_stem:
