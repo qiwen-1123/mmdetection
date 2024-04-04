@@ -1014,6 +1014,8 @@ class ResNetWithClip(ResNet):
         if self.training:
             img = self.clip_resize(x) # resize img for clip
             class_conf=self.clip(img)
+        else:
+            class_conf=None
         
         """Forward function."""
         if self.deep_stem:
@@ -1030,7 +1032,8 @@ class ResNetWithClip(ResNet):
             if i in self.out_indices:
                 outs.append(x)
         # return tuple(outs)
-        class_conf = nn.functional.interpolate(class_conf, size=outs[0].shape[2:], mode="bilinear", align_corners=True)
+        if class_conf!=None:
+            class_conf = nn.functional.interpolate(class_conf, size=outs[0].shape[2:], mode="bilinear", align_corners=True)
         return tuple([outs, class_conf])
 
     def train(self, mode=True):
