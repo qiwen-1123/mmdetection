@@ -18,6 +18,7 @@ import torch.nn.functional as F
 import torch
 from collections import OrderedDict
 from torchvision import transforms
+from mmdet.visualization import show_center, show_conf, show_img
 
 model_name = "ViT-B-16" # convnext_large_d_320, ViT-H-14-378-quickgelu, ViT-H-14, ViT-B-16, RN50
 pre_trained = "openai"  # laion2b_s29b_b131k_ft_soup, dfn5b
@@ -1061,17 +1062,3 @@ class ResNetV1d(ResNet):
     def __init__(self, **kwargs):
         super(ResNetV1d, self).__init__(
             deep_stem=True, avg_down=True, **kwargs)
-
-### visual func
-def vis_clip_conf(class_conf):
-    import matplotlib.pyplot as plt
-    class_conf_np = class_conf.squeeze().cpu().detach().numpy()
-    mask = np.argmax(class_conf_np, axis=0)
-    plt.imshow(mask, cmap="jet", alpha=0.5)
-    plt.show()
-    
-def show_img(img):
-    import matplotlib.pyplot as plt
-    img_np = img.squeeze().permute(1, 2, 0).cpu().numpy()
-    plt.imshow(img_np)
-    plt.show()

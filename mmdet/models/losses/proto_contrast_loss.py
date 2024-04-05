@@ -11,6 +11,7 @@ from torch import Tensor
 
 from mmdet.registry import MODELS
 from .utils import weighted_loss
+from mmdet.visualization import show_center, show_conf, show_img
 
 
 @MODELS.register_module()

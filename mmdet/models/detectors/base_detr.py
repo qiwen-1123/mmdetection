@@ -8,6 +8,7 @@ from mmdet.registry import MODELS
 from mmdet.structures import OptSampleList, SampleList
 from mmdet.utils import ConfigType, OptConfigType, OptMultiConfig
 from .base import BaseDetector
+from mmdet.visualization import show_center, show_conf, show_img
 
 
 @MODELS.register_module()
