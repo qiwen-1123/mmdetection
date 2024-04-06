@@ -12,7 +12,6 @@ from ..layers import ResLayer
 
 from mmdet.registry import DATASETS
 from open_clip import build_zero_shot_classifier, MonoCLIP
-from open_clip import setup_cfg, generate_args # COOP part
 import numpy as np
 import torch.nn.functional as F
 import torch
@@ -20,10 +19,8 @@ from collections import OrderedDict
 from torchvision import transforms
 from mmdet.visualization import show_center, show_conf, show_img
 
-model_name = "ViT-B-16" # convnext_large_d_320, ViT-H-14-378-quickgelu, ViT-H-14, ViT-B-16, RN50
+model_name = "RN50" # convnext_large_d_320, ViT-H-14-378-quickgelu, ViT-H-14, ViT-B-16, RN50
 pre_trained = "openai"  # laion2b_s29b_b131k_ft_soup, dfn5b
-# tokenizer = open_clip.get_tokenizer(model_name)
-# detection_templates = ["A photo of a {}"]
 
 class BasicBlock(BaseModule):
     expansion = 1
@@ -671,7 +668,7 @@ class ResNet(BaseModule):
                     m.eval()
 
 @MODELS.register_module()
-class ResNetWithClip(ResNet):
+class ResNetWithClip(BaseModule):
     """ResNet backbone with clip.
 
     Args:
@@ -757,7 +754,7 @@ class ResNetWithClip(ResNet):
                  zero_init_residual=True,
                  pretrained=None,
                  init_cfg=None):
-        super(ResNet, self).__init__(init_cfg)
+        super(ResNetWithClip, self).__init__(init_cfg)
         self.zero_init_residual = zero_init_residual
         if depth not in self.arch_settings:
             raise KeyError(f'invalid depth {depth} for resnet')
@@ -863,14 +860,10 @@ class ResNetWithClip(ResNet):
         data_class = DATASETS._module_dict['CocoDataset'].METAINFO['classes']
         self.class_num = len(data_class)
         self.data_class = data_class
-        # COOP args
-        args_coop = generate_args()
-        cfg_coop = setup_cfg(args_coop)
 
-        self.clip= MonoCLIP(data_class=self.data_class, coop_cfg=cfg_coop)
+        self.clip= MonoCLIP(data_class=self.data_class)
         self.clip_resize=transforms.Resize([896,896]) # resize for clip input
         self.clip = self.clip.to("cuda")
-        del args_coop, cfg_coop
         ### end
 
     def make_stage_plugins(self, plugins, stage_idx):
@@ -1040,7 +1033,7 @@ class ResNetWithClip(ResNet):
     def train(self, mode=True):
         """Convert the model into training mode while keep normalization layer
         freezed."""
-        super(ResNet, self).train(mode)
+        super(ResNetWithClip, self).train(mode)
         self._freeze_stages()
         if mode and self.norm_eval:
             for m in self.modules():
