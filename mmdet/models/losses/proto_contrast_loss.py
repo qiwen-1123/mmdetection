@@ -87,9 +87,10 @@ class Proto_contrast_loss(nn.Module):
 
 @MODELS.register_module()
 class loss_pseudo_score(nn.Module):
-    def __init__(self):
+    def __init__(self,loss_weight=100):
         super().__init__()
         self.smoothl1 = nn.SmoothL1Loss()
+        self.loss_weight = loss_weight
 
-    def forward(self, score_map:torch.Tensor, pseudo_map):
-        return self.smoothl1(score_map, pseudo_map)
+    def forward(self, score_map:torch.Tensor, pesudo_map):
+        return self.loss_weight*self.smoothl1(score_map, pesudo_map)
