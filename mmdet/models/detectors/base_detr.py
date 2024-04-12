@@ -241,10 +241,10 @@ class DetectionTransformer(BaseDetector, metaclass=ABCMeta):
         # if self.with_neck:
         #     x = self.neck(x)
         # return x
-        (x,clip_conf) = self.backbone(batch_inputs)# contains [img_feat, clip_conf]
+        (x, score_map, pesudo_map) = self.backbone(batch_inputs)
         if self.with_neck:
             x = self.neck(x)
-        return x+ (clip_conf,)
+        return x+ (score_map, pesudo_map)
 
     @abstractmethod
     def pre_transformer(

@@ -18,6 +18,7 @@ import torch
 from collections import OrderedDict
 from torchvision import transforms
 from mmdet.visualization import show_center, show_conf, show_img
+import copy
 
 model_name = "RN50" # convnext_large_d_320, ViT-H-14-378-quickgelu, ViT-H-14, ViT-B-16, RN50
 pre_trained = "openai"  # laion2b_s29b_b131k_ft_soup, dfn5b
@@ -865,6 +866,10 @@ class ResNetWithClip(BaseModule):
         self.clip_resize=transforms.Resize([896,896]) # resize for clip input
         self.clip = self.clip.to("cuda")
         ### end
+        ### Scoremap
+        self.score_conv1 = copy.deepcopy(self.clip.conv1)
+        self.score_conv2 = copy.deepcopy(self.clip.conv2)
+        ###end
 
     def make_stage_plugins(self, plugins, stage_idx):
         """Make plugins for ResNet ``stage_idx`` th stage.
@@ -1007,9 +1012,9 @@ class ResNetWithClip(BaseModule):
         """ Clip Part """
         if self.training:
             img = self.clip_resize(x) # resize img for clip
-            class_conf=self.clip(img)
+            pesudo_map=self.clip(img)
         else:
-            class_conf=None
+            pesudo_map=None
         
         """Forward function."""
         if self.deep_stem:
@@ -1026,9 +1031,10 @@ class ResNetWithClip(BaseModule):
             if i in self.out_indices:
                 outs.append(x)
         # return tuple(outs)
-        if class_conf!=None:
-            class_conf = nn.functional.interpolate(class_conf, size=outs[0].shape[2:], mode="bilinear", align_corners=True)
-        return tuple([outs, class_conf])
+        score_map = self.get_score_map(outs[0])
+        if pesudo_map!=None:
+            pesudo_map = nn.functional.interpolate(pesudo_map, size=outs[0].shape[2:], mode="bilinear", align_corners=True)
+        return tuple([outs, score_map, pesudo_map])
 
     def train(self, mode=True):
         """Convert the model into training mode while keep normalization layer
@@ -1041,6 +1047,19 @@ class ResNetWithClip(BaseModule):
                 if isinstance(m, _BatchNorm):
                     m.eval()
 
+    def get_score_map(self, feat):
+        feat = self.score_conv1(feat)
+        feat = self.score_conv2(feat)
+        B, C, H, W = feat.shape
+        
+        feat=feat.reshape(-1,C,H*W).permute(0,2,1)
+        feat = feat / feat.norm(dim=-1, keepdim=True)
+        
+        score_map = feat @ self.clip.text_f
+        score_map = score_map.permute(0, 2, 1).reshape(
+            B, -1, H, W
+        )
+        return score_map
 
 @MODELS.register_module()
 class ResNetV1d(ResNet):

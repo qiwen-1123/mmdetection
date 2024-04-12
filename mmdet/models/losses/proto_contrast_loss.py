@@ -30,7 +30,7 @@ class Proto_contrast_loss(nn.Module):
         score_map = F.interpolate(score_map, (H, W))
         
         # [B, hw, C] 
-        score_map = score_map.contiguous().view(B, C, -1).transpose(1, 2)
+        score_map = score_map.contiguous().view(B, C, -1).transpose(1, 2).detach()
 
         # [B, hw, 1] 
         center_map = center_map[:, 0, :, :].contiguous().view(B, -1).unsqueeze(-1).detach().cuda().to(torch.float32)
@@ -84,3 +84,12 @@ class Proto_contrast_loss(nn.Module):
             return torch.Tensor([0.0]).cuda()
         else:
             return self.ce(contrast_logits/self.temp, labels)
+
+@MODELS.register_module()
+class loss_pseudo_score(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.smoothl1 = nn.SmoothL1Loss()
+
+    def forward(self, score_map:torch.Tensor, pseudo_map):
+        return self.smoothl1(score_map, pseudo_map)

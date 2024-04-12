@@ -65,6 +65,7 @@ class DETRHead(BaseModule):
             loss_bbox: ConfigType = dict(type='L1Loss', loss_weight=5.0),
             loss_iou: ConfigType = dict(type='GIoULoss', loss_weight=2.0),
             loss_contras: ConfigType = dict(type='Proto_contrast_loss', human_index=0),
+            loss_pesudo: ConfigType = dict(type='loss_pseudo_score'),
             train_cfg: ConfigType = dict(
                 assigner=dict(
                     type='HungarianAssigner',
@@ -113,6 +114,7 @@ class DETRHead(BaseModule):
         self.loss_bbox = MODELS.build(loss_bbox)
         self.loss_iou = MODELS.build(loss_iou)
         self.loss_contras = MODELS.build(loss_contras)
+        self.loss_pesudo = MODELS.build(loss_pesudo)
 
         if self.loss_cls.use_sigmoid:
             self.cls_out_channels = num_classes
@@ -229,7 +231,7 @@ class DETRHead(BaseModule):
             f'{self.__class__.__name__} only supports ' \
             'for batch_gt_instances_ignore setting to None.'
 
-        losses_cls, losses_bbox, losses_iou, loss_contrast = multi_apply(
+        losses_cls, losses_bbox, losses_iou, loss_contrast, loss_pesudo = multi_apply(
             self.loss_by_feat_single,
             all_layers_cls_scores,
             all_layers_bbox_preds,
@@ -243,6 +245,7 @@ class DETRHead(BaseModule):
         loss_dict['loss_bbox'] = losses_bbox[-1]
         loss_dict['loss_iou'] = losses_iou[-1]
         loss_dict['loss_proto_contrast'] = loss_contrast[-1]
+        loss_dict['loss_pesudo'] = loss_pesudo[-1]
         # loss from other decoder layers
         num_dec_layer = 0
         for loss_cls_i, loss_bbox_i, loss_iou_i in \
@@ -356,7 +359,9 @@ class DETRHead(BaseModule):
             bbox_preds, bbox_targets, bbox_weights, avg_factor=num_total_pos)
         # Prototypical contrsative loss
         loss_contras=self.loss_contras(img_feat[0], img_gauss, img_feat[1])
-        return loss_cls, loss_bbox, loss_iou, loss_contras
+        # Pesudo map loss
+        loss_pesudo = self.loss_pesudo(img_feat[1],img_feat[2])
+        return loss_cls, loss_bbox, loss_iou, loss_contras, loss_pesudo
 
     def get_targets(self, cls_scores_list: List[Tensor],
                     bbox_preds_list: List[Tensor],
