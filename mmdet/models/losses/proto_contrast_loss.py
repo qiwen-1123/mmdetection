@@ -16,11 +16,12 @@ from mmdet.visualization import show_center, show_conf, show_img
 
 @MODELS.register_module()
 class Proto_contrast_loss(nn.Module):
-    def __init__(self, human_index:int):
+    def __init__(self, human_index:int, loss_weight=0.001):
         super().__init__()
         self.temp = 7e-2
         self.ce = nn.CrossEntropyLoss()
         self.human_index = human_index
+        self.loss_weight = loss_weight
     
     def forward(self, feature:torch.Tensor, center_map: torch.Tensor, score_map: torch.Tensor):
         B, E, H, W = feature.shape
@@ -83,7 +84,7 @@ class Proto_contrast_loss(nn.Module):
         if contrast_logits.shape[0] <= 0:
             return torch.Tensor([0.0]).cuda()
         else:
-            return self.ce(contrast_logits/self.temp, labels)
+            return self.loss_weight*self.ce(contrast_logits/self.temp, labels)
 
 @MODELS.register_module()
 class loss_pseudo_score(nn.Module):
