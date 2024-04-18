@@ -80,8 +80,7 @@ model = dict(
             loss_weight=1.0),
         loss_bbox=dict(type='L1Loss', loss_weight=5.0),
         loss_iou=dict(type='GIoULoss', loss_weight=2.0),
-        loss_contras=dict(type='Proto_contrast_loss', human_index=0, loss_weight=0.001),
-        loss_pesudo=dict(type='loss_pseudo_score', loss_weight=100)),
+        loss_contras=dict(type='Proto_contrast_loss', human_index=0, loss_weight=1e-2)),
     # training and testing settings
     train_cfg=dict(
         assigner=dict(

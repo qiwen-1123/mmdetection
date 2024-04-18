@@ -16,7 +16,7 @@ from mmdet.visualization import show_center, show_conf, show_img
 
 @MODELS.register_module()
 class Proto_contrast_loss(nn.Module):
-    def __init__(self, human_index:int, loss_weight=0.001):
+    def __init__(self, human_index:int, loss_weight=1e-2):
         super().__init__()
         self.temp = 7e-2
         self.ce = nn.CrossEntropyLoss()

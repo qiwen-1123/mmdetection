@@ -9,6 +9,8 @@ from mmdet.structures import OptSampleList, SampleList
 from mmdet.utils import ConfigType, OptConfigType, OptMultiConfig
 from .base import BaseDetector
 from mmdet.visualization import show_center, show_conf, show_img
+from mmdet.visualization import add_to_dict, show_TSNE
+from collections import defaultdict
 
 
 @MODELS.register_module()
@@ -76,6 +78,7 @@ class DetectionTransformer(BaseDetector, metaclass=ABCMeta):
             self.neck = MODELS.build(neck)
         self.bbox_head = MODELS.build(bbox_head)
         self._init_layers()
+        self.vis_data=defaultdict()
 
     @abstractmethod
     def _init_layers(self) -> None:
@@ -141,6 +144,8 @@ class DetectionTransformer(BaseDetector, metaclass=ABCMeta):
             batch_data_samples=batch_data_samples)
         batch_data_samples = self.add_pred_to_datasample(
             batch_data_samples, results_list)
+        # add_to_dict(results_list, head_inputs_dict['hidden_states'][-1], self.vis_data)
+        # show_TSNE(self.vis_data)
         return batch_data_samples
 
     def _forward(
@@ -241,10 +246,10 @@ class DetectionTransformer(BaseDetector, metaclass=ABCMeta):
         # if self.with_neck:
         #     x = self.neck(x)
         # return x
-        (x, score_map, pesudo_map) = self.backbone(batch_inputs)
+        (x, score_map) = self.backbone(batch_inputs)
         if self.with_neck:
             x = self.neck(x)
-        return x+ (score_map, pesudo_map)
+        return x+ (score_map,)
 
     @abstractmethod
     def pre_transformer(

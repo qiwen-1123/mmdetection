@@ -1012,9 +1012,9 @@ class ResNetWithClip(BaseModule):
         """ Clip Part """
         if self.training:
             img = self.clip_resize(x) # resize img for clip
-            pesudo_map=self.clip(img)
+            score_map=self.clip(img)
         else:
-            pesudo_map=None
+            score_map=None
         
         """Forward function."""
         if self.deep_stem:
@@ -1031,10 +1031,9 @@ class ResNetWithClip(BaseModule):
             if i in self.out_indices:
                 outs.append(x)
         # return tuple(outs)
-        score_map = self.get_score_map(outs[0])
-        if pesudo_map!=None:
-            pesudo_map = nn.functional.interpolate(pesudo_map, size=outs[0].shape[2:], mode="bilinear", align_corners=True)
-        return tuple([outs, score_map, pesudo_map])
+        if score_map!=None:
+            score_map = nn.functional.interpolate(score_map, size=outs[0].shape[2:], mode="bilinear", align_corners=True)
+        return tuple([outs, score_map])
 
     def train(self, mode=True):
         """Convert the model into training mode while keep normalization layer
