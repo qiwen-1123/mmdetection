@@ -19,6 +19,7 @@ from collections import OrderedDict
 from torchvision import transforms
 from mmdet.visualization import show_center, show_conf, show_img
 import copy
+import pickle
 
 model_name = "RN50" # convnext_large_d_320, ViT-H-14-378-quickgelu, ViT-H-14, ViT-B-16, RN50
 pre_trained = "openai"  # laion2b_s29b_b131k_ft_soup, dfn5b
@@ -861,8 +862,11 @@ class ResNetWithClip(BaseModule):
         data_class = DATASETS._module_dict['CocoDataset'].METAINFO['classes']
         self.class_num = len(data_class)
         self.data_class = data_class
-
-        self.clip= MonoCLIP(data_class=self.data_class)
+        
+        proto_path='data_proto.pkl'
+        with open(proto_path, 'rb') as f:
+                cate_protos_dict = pickle.load(f)
+        self.clip= MonoCLIP(data_class=self.data_class, cate_protos_dict=cate_protos_dict)
         self.clip_resize=transforms.Resize([896,896]) # resize for clip input
         self.clip = self.clip.to("cuda")
         ### end
@@ -1012,9 +1016,10 @@ class ResNetWithClip(BaseModule):
         """ Clip Part """
         if self.training:
             img = self.clip_resize(x) # resize img for clip
-            score_map=self.clip(img)
+            score_map, cate_protos = self.clip(img)
         else:
             score_map=None
+            cate_protos=None
         
         """Forward function."""
         if self.deep_stem:
@@ -1033,7 +1038,7 @@ class ResNetWithClip(BaseModule):
         # return tuple(outs)
         if score_map!=None:
             score_map = nn.functional.interpolate(score_map, size=outs[0].shape[2:], mode="bilinear", align_corners=True)
-        return tuple([outs, score_map])
+        return tuple([outs, score_map, cate_protos])
 
     def train(self, mode=True):
         """Convert the model into training mode while keep normalization layer

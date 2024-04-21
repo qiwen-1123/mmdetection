@@ -355,7 +355,7 @@ class DETRHead(BaseModule):
         loss_bbox = self.loss_bbox(
             bbox_preds, bbox_targets, bbox_weights, avg_factor=num_total_pos)
         # Prototypical contrsative loss
-        loss_contras=self.loss_contras(img_feat[0], img_gauss, img_feat[1])
+        loss_contras=self.loss_contras(img_feat[0], img_gauss, img_feat[1], img_feat[2])
         return loss_cls, loss_bbox, loss_iou, loss_contras
 
     def get_targets(self, cls_scores_list: List[Tensor],

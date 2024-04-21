@@ -23,10 +23,12 @@ class Proto_contrast_loss(nn.Module):
         self.human_index = human_index
         self.loss_weight = loss_weight
     
-    def forward(self, feature:torch.Tensor, center_map: torch.Tensor, score_map: torch.Tensor):
+    def forward(self, feature:torch.Tensor, center_map: torch.Tensor, score_map: torch.Tensor, cate_protos_pre: torch.Tensor):
         B, E, H, W = feature.shape
         # [B, C, h, w]
         C = score_map.shape[1]
+        
+        cate_protos_pre = cate_protos_pre.unsqueeze(0).repeat(B, 1, 1)
 
         score_map = F.interpolate(score_map, (H, W))
         
@@ -55,7 +57,8 @@ class Proto_contrast_loss(nn.Module):
         pos_ped_proto:torch.Tensor = pos_ped_proto / torch.clamp_min(torch.norm(pos_ped_proto, p=2, dim=1, keepdim=True), 1e-5)
 
         # Negative Proto [E, B*(C-1)]
-        neg_protos = cate_protos[:, :, non_ped_idxs].transpose(0, 1).contiguous().view(E, B*(C-1))
+        # neg_protos = cate_protos[:, :, non_ped_idxs].transpose(0, 1).contiguous().view(E, B*(C-1))
+        neg_protos = cate_protos_pre[:, :, non_ped_idxs].transpose(0, 1).contiguous().view(E, B*(C-1))
 
         # Normalize [B, E, hw]
         feat_norm:torch.Tensor = feature / torch.clamp_min(torch.norm(feature, p=2, dim=1, keepdim=True), 1e-5)

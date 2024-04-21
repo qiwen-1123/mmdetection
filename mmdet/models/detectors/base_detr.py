@@ -11,6 +11,7 @@ from .base import BaseDetector
 from mmdet.visualization import show_center, show_conf, show_img
 from mmdet.visualization import add_to_dict, show_TSNE
 from collections import defaultdict
+import torch.nn.functional as F
 
 
 @MODELS.register_module()
@@ -246,10 +247,12 @@ class DetectionTransformer(BaseDetector, metaclass=ABCMeta):
         # if self.with_neck:
         #     x = self.neck(x)
         # return x
-        (x, score_map) = self.backbone(batch_inputs)
+        (x, score_map, cate_protos) = self.backbone(batch_inputs)
+        if cate_protos is not None and self.with_neck:
+            cate_protos = F.avg_pool2d(cate_protos.unsqueeze(0), kernel_size=(8, 1), stride=(8, 1)).squeeze(0)
         if self.with_neck:
             x = self.neck(x)
-        return x+ (score_map,)
+        return x+ (score_map, cate_protos)
 
     @abstractmethod
     def pre_transformer(
