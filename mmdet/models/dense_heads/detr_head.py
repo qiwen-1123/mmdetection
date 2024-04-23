@@ -228,21 +228,22 @@ class DETRHead(BaseModule):
         assert batch_gt_instances_ignore is None, \
             f'{self.__class__.__name__} only supports ' \
             'for batch_gt_instances_ignore setting to None.'
+        loss_contrast = self.loss_by_proto(batch_img_metas=batch_img_metas,
+                                           img_feat=img_feat)
 
-        losses_cls, losses_bbox, losses_iou, loss_contrast = multi_apply(
+        losses_cls, losses_bbox, losses_iou = multi_apply(
             self.loss_by_feat_single,
             all_layers_cls_scores,
             all_layers_bbox_preds,
             batch_gt_instances=batch_gt_instances,
-            batch_img_metas=batch_img_metas,
-            img_feat=img_feat)
+            batch_img_metas=batch_img_metas)
 
         loss_dict = dict()
         # loss from the last decoder layer
         loss_dict['loss_cls'] = losses_cls[-1]
         loss_dict['loss_bbox'] = losses_bbox[-1]
         loss_dict['loss_iou'] = losses_iou[-1]
-        loss_dict['loss_proto_contrast'] = loss_contrast[-1]
+        loss_dict['loss_proto_contrast'] = loss_contrast
         # loss from other decoder layers
         num_dec_layer = 0
         for loss_cls_i, loss_bbox_i, loss_iou_i in \
@@ -253,10 +254,21 @@ class DETRHead(BaseModule):
             num_dec_layer += 1
         return loss_dict
 
+    def loss_by_proto(self, batch_img_metas: List[dict], 
+                      img_feat: Tuple[Tensor]):
+        """ Loss function for prototypical loss, only calculated once for the last layer """
+        img_gauss=[]
+        for img_meta in batch_img_metas:
+            img_gauss_tensor = torch.tensor(img_meta['gauss']).unsqueeze(0).unsqueeze(0) 
+            img_gauss_tensor = nn.functional.interpolate(img_gauss_tensor,  size=img_feat[0].shape[-2:], mode="bilinear", align_corners=True)
+            img_gauss.append(img_gauss_tensor)
+        img_gauss = torch.cat(img_gauss, dim=0)
+        loss_contras=self.loss_contras(img_feat[0], img_gauss, img_feat[1]) # img_feat[0]: feature from backbone ; img_feat[1]: scoremap
+        return loss_contras
+
     def loss_by_feat_single(self, cls_scores: Tensor, bbox_preds: Tensor,
                             batch_gt_instances: InstanceList,
-                            batch_img_metas: List[dict],
-                            img_feat: Tuple[Tensor]) -> Tuple[Tensor]:
+                            batch_img_metas: List[dict]) -> Tuple[Tensor]:
         """Loss function for outputs from a single decoder layer of a single
         feature level.
 
@@ -325,20 +337,14 @@ class DETRHead(BaseModule):
         num_total_pos = torch.clamp(reduce_mean(num_total_pos), min=1).item()
 
         # construct factors used for rescale bboxes
-        # construct img gaussian feat for contrastive loss
         factors = []
-        img_gauss=[]
         for img_meta, bbox_pred in zip(batch_img_metas, bbox_preds):
             img_h, img_w, = img_meta['img_shape']
             factor = bbox_pred.new_tensor([img_w, img_h, img_w,
                                            img_h]).unsqueeze(0).repeat(
                                                bbox_pred.size(0), 1)
             factors.append(factor)
-            img_gauss_tensor = torch.tensor(img_meta['gauss']).unsqueeze(0).unsqueeze(0) 
-            img_gauss_tensor = nn.functional.interpolate(img_gauss_tensor,  size=img_feat[0].shape[-2:], mode="bilinear", align_corners=True)
-            img_gauss.append(img_gauss_tensor)
         factors = torch.cat(factors, 0)
-        img_gauss = torch.cat(img_gauss, dim=0)
 
         # DETR regress the relative position of boxes (cxcywh) in the image,
         # thus the learning target is normalized by the image size. So here
@@ -354,9 +360,7 @@ class DETRHead(BaseModule):
         # regression L1 loss
         loss_bbox = self.loss_bbox(
             bbox_preds, bbox_targets, bbox_weights, avg_factor=num_total_pos)
-        # Prototypical contrsative loss
-        loss_contras=self.loss_contras(img_feat[0], img_gauss, img_feat[1])
-        return loss_cls, loss_bbox, loss_iou, loss_contras
+        return loss_cls, loss_bbox, loss_iou
 
     def get_targets(self, cls_scores_list: List[Tensor],
                     bbox_preds_list: List[Tensor],

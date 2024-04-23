@@ -22,6 +22,20 @@ class Proto_contrast_loss(nn.Module):
         self.ce = nn.CrossEntropyLoss()
         self.human_index = human_index
         self.loss_weight = loss_weight
+        self.queue_size = 1024
+        self.register_buffer("queue",  nn.functional.normalize(torch.randn(self.queue_size, 256, 80, requires_grad=False), dim=1)/10)
+        self.ptr = 0
+        self.queue_is_full = False
+
+    @torch.no_grad()
+    def update_queue(self, k, batch_size):
+        """ swap oldest batch with the current key batch and update ptr"""
+        if (self.ptr + batch_size)>=self.queue_size and self.queue_is_full==False:
+            self.queue_is_full = True
+        self.queue[self.ptr: self.ptr + batch_size, :] = k.detach().cpu()
+        self.ptr = (self.ptr + batch_size) % self.queue_size
+        self.queue.requires_grad = False
+        
     
     def forward(self, feature:torch.Tensor, center_map: torch.Tensor, score_map: torch.Tensor):
         B, E, H, W = feature.shape
@@ -46,6 +60,9 @@ class Proto_contrast_loss(nn.Module):
         # Normalize
         cate_protos:torch.Tensor = cate_protos / torch.clamp_min(torch.norm(cate_protos, p=2, dim=1, keepdim=True), 1e-5)
 
+        # update queue
+        self.update_queue(cate_protos, B)
+
         # Non Ped idxs
         non_ped_idxs = torch.arange(cate_protos.shape[-1])!=self.human_index
         
@@ -55,7 +72,13 @@ class Proto_contrast_loss(nn.Module):
         pos_ped_proto:torch.Tensor = pos_ped_proto / torch.clamp_min(torch.norm(pos_ped_proto, p=2, dim=1, keepdim=True), 1e-5)
 
         # Negative Proto [E, B*(C-1)]
-        neg_protos = cate_protos[:, :, non_ped_idxs].transpose(0, 1).contiguous().view(E, B*(C-1))
+        if self.queue_is_full!=True:
+            Q = self.ptr
+            print(self.ptr)
+        else:
+            Q = self.queue_size
+        # neg_protos = cate_protos[:, :, non_ped_idxs].transpose(0, 1).contiguous().view(E, B*(C-1))
+        neg_protos = self.queue[:Q, :, non_ped_idxs].transpose(0, 1).contiguous().view(E, Q*(C-1))
 
         # Normalize [B, E, hw]
         feat_norm:torch.Tensor = feature / torch.clamp_min(torch.norm(feature, p=2, dim=1, keepdim=True), 1e-5)
@@ -75,7 +98,7 @@ class Proto_contrast_loss(nn.Module):
         # Contrast Logits, from Pos & Neg [K, 1+B*(C-1)]
         contrast_logits = torch.cat([l_pos, l_neg], dim=-1).squeeze(1)
 
-        assert contrast_logits.shape[-1] == 1+B*(C-1)
+        assert contrast_logits.shape[-1] == 1+Q*(C-1)
 
         K = contrast_logits.shape[0]
         # Label
