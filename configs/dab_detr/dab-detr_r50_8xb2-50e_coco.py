@@ -134,8 +134,9 @@ train_pipeline = [
 ]
 # train_dataloader = dict(dataset=dict(pipeline=train_pipeline))
 train_dataloader = dict(
-    batch_size=2,
-    num_workers=2,
+    batch_size=4,
+    num_workers=4,
+    batch_sampler=dict(drop_last=True),
     dataset=dict(pipeline=train_pipeline))
 
 # optimizer
