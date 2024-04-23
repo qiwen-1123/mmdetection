@@ -28,8 +28,9 @@ class Proto_contrast_loss(nn.Module):
         self.queue_is_full = False
 
     @torch.no_grad()
-    def update_queue(self, k, batch_size):
+    def update_queue(self, k):
         """ swap oldest batch with the current key batch and update ptr"""
+        batch_size = k.shape[0]
         if (self.ptr + batch_size)>=self.queue_size and self.queue_is_full==False:
             self.queue_is_full = True
         self.queue[self.ptr: self.ptr + batch_size, :] = k.detach().cpu()
@@ -61,7 +62,7 @@ class Proto_contrast_loss(nn.Module):
         cate_protos:torch.Tensor = cate_protos / torch.clamp_min(torch.norm(cate_protos, p=2, dim=1, keepdim=True), 1e-5)
 
         # update queue
-        self.update_queue(cate_protos, B)
+        self.update_queue(cate_protos)
 
         # Non Ped idxs
         non_ped_idxs = torch.arange(cate_protos.shape[-1])!=self.human_index
