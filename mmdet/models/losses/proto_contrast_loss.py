@@ -74,7 +74,6 @@ class Proto_contrast_loss(nn.Module):
         # Negative Proto [E, B*(C-1)]
         if self.queue_is_full!=True:
             Q = self.ptr
-            print(self.ptr)
         else:
             Q = self.queue_size
         # neg_protos = cate_protos[:, :, non_ped_idxs].transpose(0, 1).contiguous().view(E, B*(C-1))
