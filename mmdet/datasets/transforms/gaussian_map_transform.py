@@ -1,11 +1,17 @@
 from mmcv.transforms import BaseTransform
 from mmdet.registry import TRANSFORMS
+from mmdet.registry import DATASETS
 
 import numpy as np
 import torch
 
 @TRANSFORMS.register_module()
 class GaussianMapTransform(BaseTransform):
+    def __init__(self, dataset_type,  *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.dataset_type = dataset_type
+        self.data_cls = DATASETS.get(self.dataset_type).METAINFO['classes']
+        
     def transform(self, results: dict) -> dict:
         """Method to get Gussian Map for construct positive prototype in VLPD.
 
@@ -15,25 +21,26 @@ class GaussianMapTransform(BaseTransform):
         Returns:
             results (dict): add Gaussian map
         """
+        cls_num = len(self.data_cls)
+        pos_map = torch.zeros((cls_num, *results['img_shape']), dtype=torch.float32)
+        gt_cls = np.unique(results['gt_bboxes_labels']) # array of gt bbox class index, skip non existing classes
+        for idx in gt_cls:
+            idx_goal_cls = np.where(results['gt_bboxes_labels'] == idx) 
 
-        pos_map = np.zeros(results['img_shape'])
-        idx_goal_cls = np.where(results['gt_bboxes_labels'] == 0) # 0 is person
-        idx_goal_cls = torch.tensor(idx_goal_cls).squeeze()
-        
-        gts=results['gt_bboxes'].tensor
-        gts = gts[idx_goal_cls] # the gts of cls 0
-        
-        if len(gts.shape) != 2:
-            gts = gts.unsqueeze(0)
-        
-        if len(gts)>0:
-            for ind in range(len(gts)):
-                x1, y1, x2, y2 = int(np.ceil(gts[ind, 0])), int(np.ceil(gts[ind, 1])), int(gts[ind, 2]), int(gts[ind, 3])
-                dx = gaussian(x2-x1)
-                dy = gaussian(y2-y1)
-                gau_map = np.multiply(dy, np.transpose(dx))
-                pos_map[ y1:y2, x1:x2] = np.maximum(pos_map[ y1:y2, x1:x2], gau_map)  # gauss map
-            
+            gts = results['gt_bboxes'].tensor
+            gts = gts[idx_goal_cls]  # the gts of cls
+
+            if len(gts.shape) != 2:
+                gts = gts.unsqueeze(0)
+
+            if len(gts) > 0:
+                for ind in range(len(gts)):
+                    x1, y1, x2, y2 = gts[ind, :4].ceil().int()
+                    dx = gaussian(x2 - x1)
+                    dy = gaussian(y2 - y1)
+                    gau_map = dy @ dx.T
+                    pos_map[idx, y1:y2, x1:x2] = torch.maximum(pos_map[idx, y1:y2, x1:x2], gau_map)  # gauss map
+
         results['gauss'] = pos_map
         return results
     
@@ -46,5 +53,5 @@ class GaussianMapTransform(BaseTransform):
 def gaussian(kernel):
     sigma = ((kernel-1) * 0.5 - 1) * 0.3 + 0.8
     s = 2*(sigma**2)
-    dx = np.exp(-np.square(np.arange(kernel) - int(kernel / 2)) / s)
-    return np.reshape(dx, (-1, 1))
+    dx = torch.exp(-torch.square(torch.arange(kernel).float() - int(kernel / 2)) / s)
+    return dx.view(-1, 1)

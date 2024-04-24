@@ -1,6 +1,7 @@
 _base_ = [
     '../_base_/datasets/coco_detection.py', '../_base_/default_runtime.py'
 ]
+dataset_type = _base_['train_dataloader']['dataset']['type']
 model = dict(
     type='DABDETR',
     num_queries=300,
@@ -126,7 +127,7 @@ train_pipeline = [
                                     (768, 1333), (800, 1333)],
                             keep_ratio=True)
                     ]]),
-    dict(type='GaussianMapTransform'),
+    dict(type='GaussianMapTransform', dataset_type = dataset_type),
     dict(type='PackDetInputs',
         meta_keys=('img_id', 'img_path', 'ori_shape', 'img_shape',
                             'scale_factor', 'flip', 'flip_direction', 'gauss')),
