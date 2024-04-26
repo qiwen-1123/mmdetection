@@ -24,16 +24,18 @@ class Proto_contrast_loss(nn.Module):
         self.loss_weight = loss_weight
         self.queue_size = 1024
         #register queue to save all cate_protos
-        self.register_buffer("queue",  nn.functional.normalize(torch.randn(self.queue_size, 256, 80, requires_grad=False), dim=1)/10)
-        self.ptr = 0
-        self.queue_is_full = False
+        self.register_buffer("queue", torch.zeros(
+            self.queue_size, 256, 80, requires_grad=False,
+            dtype=torch.float32))
+        self.register_buffer("ptr", torch.tensor(0, requires_grad=False, dtype=torch.int32))
+        self.register_buffer("queue_is_full", torch.tensor(False, dtype=torch.bool) )
 
     @torch.no_grad()
     def update_queue(self, k):
         """ swap oldest batch with the current key batch and update ptr"""
         batch_size = k.shape[0]
         if (self.ptr + batch_size)>=self.queue_size and self.queue_is_full==False:
-            self.queue_is_full = True
+            self.queue_is_full = torch.tensor(True, dtype=torch.bool)
         self.queue[self.ptr: self.ptr + batch_size, :] = k.detach().cpu()
         self.ptr = (self.ptr + batch_size) % self.queue_size
         self.queue.requires_grad = False
