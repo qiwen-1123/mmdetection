@@ -22,6 +22,7 @@ import copy
 
 model_name = "RN50" # convnext_large_d_320, ViT-H-14-378-quickgelu, ViT-H-14, ViT-B-16, RN50
 pre_trained = "openai"  # laion2b_s29b_b131k_ft_soup, dfn5b
+background_cls = ('see', 'river', 'snow', 'beach', 'road', 'ground', 'pavement', 'mountain', 'grass', 'tree', 'leaves', 'bush', 'fence', 'building', 'wall', 'sky',)
 
 class BasicBlock(BaseModule):
     expansion = 1
@@ -860,7 +861,7 @@ class ResNetWithClip(BaseModule):
         ### Clip Part
         data_class = DATASETS._module_dict['CocoDataset'].METAINFO['classes']
         self.class_num = len(data_class)
-        self.data_class = data_class
+        self.data_class = data_class+background_cls
 
         self.clip= MonoCLIP(data_class=self.data_class)
         self.clip_resize=transforms.Resize([896,896]) # resize for clip input

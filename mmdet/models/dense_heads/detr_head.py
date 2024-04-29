@@ -259,7 +259,7 @@ class DETRHead(BaseModule):
         """ Loss function for prototypical loss, only calculated once for the last layer """
         img_gauss=[]
         for img_meta in batch_img_metas:
-            img_gauss_tensor = torch.tensor(img_meta['gauss']).unsqueeze(0).unsqueeze(0) 
+            img_gauss_tensor = img_meta['gauss'].unsqueeze(0).unsqueeze(0)
             img_gauss_tensor = nn.functional.interpolate(img_gauss_tensor,  size=img_feat[0].shape[-2:], mode="bilinear", align_corners=True)
             img_gauss.append(img_gauss_tensor)
         img_gauss = torch.cat(img_gauss, dim=0)
