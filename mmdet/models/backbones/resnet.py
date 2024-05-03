@@ -1011,7 +1011,8 @@ class ResNetWithClip(BaseModule):
     def forward(self, x):
         """ Clip Part """
         if self.training:
-            img = self.clip_resize(x) # resize img for clip
+            # img = self.clip_resize(x) # resize img for clip
+            img = x.clone()
             score_map=self.clip(img)
         else:
             score_map=None

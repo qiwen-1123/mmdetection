@@ -16,13 +16,13 @@ from mmdet.visualization import show_center, show_conf, show_img
 
 @MODELS.register_module()
 class Proto_contrast_loss(nn.Module):
-    def __init__(self, human_index:int, loss_weight=1e-2):
+    def __init__(self, human_index:int, loss_weight=1e-2, queue_size=64):
         super().__init__()
         self.temp = 7e-2
         self.ce = nn.CrossEntropyLoss()
         self.human_index = human_index
         self.loss_weight = loss_weight
-        self.queue_size = 1024
+        self.queue_size = queue_size
         #register queue to save all cate_protos
         self.register_buffer("queue", torch.zeros(
             self.queue_size, 256, 80, requires_grad=False,
@@ -53,10 +53,10 @@ class Proto_contrast_loss(nn.Module):
         score_map = score_map.contiguous().view(B, C, -1).transpose(1, 2).detach()
 
         # [B, hw, Class] 
-        center_map = center_map[:, :, :, :].contiguous().view(B, Class, -1).transpose(1, 2).detach().cuda().to(torch.float32)
+        center_map = center_map.contiguous().view(B, Class, -1).transpose(1, 2).detach().cuda().to(torch.float32)
 
         # scale up the gap between logits of different classes
-        score_map = (score_map / 1e-3).softmax(dim=-1)
+        score_map = (score_map / 1e-2).softmax(dim=-1)
 
         # [B, E, hw]
         feature = feature.contiguous().view(B, E, -1)
@@ -96,12 +96,11 @@ class Proto_contrast_loss(nn.Module):
             if (center_map_cls > 0).sum() <=0: # no gt bbox for this cls, skip
                 continue
             # remove the pos cls in the feat_neg_score
-            feat_neg_score_cls = feat_neg_score.clone()
-            mask_neg = torch.ones_like(feat_neg_score_cls, dtype=torch.bool)
+            mask_neg = torch.ones_like(feat_neg_score, dtype=torch.bool)
             pos_idx = torch.arange(Q)*Class+cls
             mask_neg[:,:,  pos_idx] = False
             # select the neg reagrding to cls as pos, in batch dim [B, hw, Q*(C-1)]
-            feat_neg_score_cls = torch.masked_select(feat_neg_score_cls, mask_neg).view(B, H*W, -1)
+            feat_neg_score_cls = torch.masked_select(feat_neg_score, mask_neg).view(B, H*W, -1)
             
             # select the pos positions [K, 1, Q*(C-1)]
             l_neg = feat_neg_score_cls[center_map_cls > 0].unsqueeze(1)
