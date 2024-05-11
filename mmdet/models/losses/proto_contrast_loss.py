@@ -90,6 +90,7 @@ class Proto_contrast_loss(nn.Module):
         feat_pos_score = feat_norm.transpose(1, 2) @ pos_proto
         
         proto_loss = torch.tensor(0, dtype=torch.float32).cuda()
+        cls_gt_num = 0
         for cls in range(Class):
             # select the pos positions [K, 1, B*(C-1)], K is num of pixels inside the bbox
             center_map_cls=center_map[:,:,cls]
@@ -115,14 +116,18 @@ class Proto_contrast_loss(nn.Module):
 
             K = contrast_logits.shape[0]
             # Label
-            labels = cls*torch.ones(K).long().cuda()
+            labels = 0*torch.ones(K).long().cuda() # the first one is positive, all the rest are neg
             
             if contrast_logits.shape[0] <= 0:
                 continue
             else:
                 proto_loss+=self.ce(contrast_logits/self.temp, labels)
-
-        return self.loss_weight*proto_loss
+                cls_gt_num += 1
+        # make sure there is at leat one GT class in the batch    
+        if cls_gt_num>0:
+            return self.loss_weight*(proto_loss/cls_gt_num)
+        else:
+            return 0
 
 @MODELS.register_module()
 class loss_pseudo_score(nn.Module):
