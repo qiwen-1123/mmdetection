@@ -25,7 +25,7 @@ class Proto_contrast_loss(nn.Module):
         self.queue_size = queue_size
         #register queue to save all cate_protos
         self.register_buffer("queue", torch.zeros(
-            self.queue_size, 256, 80, requires_grad=False,
+            self.queue_size, 256, 92, requires_grad=False,
             dtype=torch.float32))
         self.register_buffer("ptr", torch.tensor(0, requires_grad=False, dtype=torch.int32))
         self.register_buffer("queue_is_full", torch.tensor(False, dtype=torch.bool) )

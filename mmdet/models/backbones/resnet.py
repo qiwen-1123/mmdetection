@@ -22,7 +22,8 @@ import copy
 
 model_name = "RN50" # convnext_large_d_320, ViT-H-14-378-quickgelu, ViT-H-14, ViT-B-16, RN50
 pre_trained = "openai"  # laion2b_s29b_b131k_ft_soup, dfn5b
-
+coco_cls=['person, body parts', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat', 'traffic light', 'fire hydrant', 'stop sign', 'parking meter', 'bench', 'bird', 'cat', 'dog', 'horse', 'sheep', 'cow', 'elephant', 'bear', 'zebra', 'giraffe', 'backpack', 'umbrella', 'handbag', 'tie', 'suitcase', 'frisbee', 'skis', 'snowboard', 'sports ball', 'kite', 'baseball bat', 'baseball glove', 'skateboard', 'surfboard', 'tennis racket', 'bottle', 'wine glass', 'cup', 'fork', 'knife', 'spoon', 'bowl', 'banana', 'apple', 'sandwich', 'orange', 'broccoli', 'carrot', 'hot dog', 'pizza', 'donut', 'cake', 'chair', 'couch', 'potted plant', 'bed', 'dining table', 'toilet', 'tv', 'laptop', 'mouse', 'remote', 'keyboard', 'cell phone', 'microwave', 'oven', 'toaster', 'sink', 'refrigerator', 'book', 'analog clock, digital clock', 'vase', 'scissors', 'teddy bear', 'hair drier', 'toothbrush']
+background_cls = ['deer', 'fixed-line telephone', 'rubbish bin', 'plate', 'sky', 'water', 'road', 'grass', 'sand', 'snow', 'building', 'tree', ]
 class BasicBlock(BaseModule):
     expansion = 1
 
@@ -858,9 +859,9 @@ class ResNetWithClip(BaseModule):
             len(self.stage_blocks) - 1)
         
         ### Clip Part
-        data_class = DATASETS._module_dict['CocoDataset'].METAINFO['classes']
+        data_class = coco_cls
         self.class_num = len(data_class)
-        self.data_class = data_class
+        self.data_class = data_class + background_cls
 
         self.clip= MonoCLIP(data_class=self.data_class)
         self.clip_resize=transforms.Resize([896,896]) # resize for clip input
