@@ -98,7 +98,7 @@ class Proto_contrast_loss(nn.Module):
                 continue
             # remove the pos cls in the feat_neg_score
             mask_neg = torch.ones_like(feat_neg_score, dtype=torch.bool)
-            pos_idx = torch.arange(Q)*Class+cls
+            pos_idx = torch.arange(Q)*C+cls
             mask_neg[:,:,  pos_idx] = False
             # select the neg reagrding to cls as pos, in batch dim [B, hw, Q*(C-1)]
             feat_neg_score_cls = torch.masked_select(feat_neg_score, mask_neg).view(B, H*W, -1)
